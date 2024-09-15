@@ -1,10 +1,12 @@
 import torch
-from tqdm.auto import tqdm
+import time
+import os
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 def train_model(model, criterion, optimizer, scheduler, train_loader, val_loader, num_epochs=25, save_name=None):
     model = model.to(device)
     best_iou = 0.0
+    time_start = int(time.time())
 
     # Lists to store metrics for each epoch
     train_losses = []
@@ -22,7 +24,7 @@ def train_model(model, criterion, optimizer, scheduler, train_loader, val_loader
         total_dice = 0.0
         total_samples = 0
 
-        for (image_A, image_B), labels in tqdm(train_loader):
+        for (image_A, image_B), labels in train_loader:
             image_A, image_B, labels = image_A.to(device), image_B.to(device), labels.to(device)
             
             # Zero the parameter gradients
@@ -61,8 +63,6 @@ def train_model(model, criterion, optimizer, scheduler, train_loader, val_loader
         epoch_dice = total_dice / total_samples
 
         print(f'Epoch {epoch+1}/{num_epochs}, Training Loss: {epoch_loss:.4f}, IoU: {epoch_iou:.4f}, DICE: {epoch_dice:.4f}')
-        print("-"*10)
-
         # Append training metrics for the epoch
         train_losses.append(epoch_loss)
         train_ious.append(epoch_iou)
@@ -75,17 +75,29 @@ def train_model(model, criterion, optimizer, scheduler, train_loader, val_loader
         val_dices.append(val_dice)
 
         print(f'Epoch {epoch+1}/{num_epochs}, Validation Loss: {val_loss:.4f}, IoU: {val_iou:.4f}, DICE: {val_dice:.4f}')
-        print("-"*10)
+        print("-"*40)
 
         # Step the StepLR
         scheduler.step()
 
         if val_iou > best_iou:
+            os.makedirs(f'../model_weights/{time_start}', exist_ok=True)
             best_iou = val_iou
             print('Saving the best model with IoU:', best_iou)
-            torch.save(model.state_dict(), f'../data/lesson_1/model_weights/{save_name}')
+            torch.save(model.state_dict(), f'../model_weights/{time_start}/{save_name}_{time_start}_best.pth')
         
     print('Finished Training')
+
+    #save metrics 
+    metrics = {
+        'train_losses': train_losses,
+        'train_ious': train_ious,
+        'train_dices': train_dices,
+        'val_losses': val_losses,
+        'val_ious': val_ious,
+        'val_dices': val_dices
+    }
+    torch.save(metrics, f'../model_weights/{time_start}/{save_name}_{time_start}_metrics.pth')
 
     # Return all metrics lists
     return train_losses, train_ious, train_dices, val_losses, val_ious, val_dices
