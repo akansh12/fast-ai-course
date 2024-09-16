@@ -60,5 +60,11 @@ def visualize_test_results(model, test_loader, num_examples=5):
                 plt.title("Pred(IoU: {:.4f}, DICE: {:.4f})".format(iou, dice))
                 print(f"IoU: {iou:.4f}, DICE: {dice:.4f}")
                 plt.show()
-                if j == num_examples - 1:
+                if j > min(len(image_A), num_examples):
                     return
+                
+
+def remove_outliers(data, m=2):
+    '''Remove outliers from a numpy array'''
+    return np.array(data)[abs(data - np.mean(data)) < m * np.std(data)]
+
